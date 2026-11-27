@@ -49,7 +49,7 @@ func run(ctx context.Context, args []string, in io.Reader, out, stderr io.Writer
 		fmt.Fprintln(out, "  convert --json --limit 0.5T  返回逐条 JSON 结果，使用指定大小上限")
 		fmt.Fprintln(out, "  convert --attach --json     为本次转换的所有链接添加常用附件")
 		fmt.Fprintln(out, "  convert --template <文本>   按 {{.Title}}、{{.URL}} 等变量输出，也可用 --template-file <路径>")
-		fmt.Fprintln(out, "  serve --port 8765           打开本地网页与 JSON API")
+		fmt.Fprintln(out, "  serve [--host 地址] [--port 8765]   打开本地网页与 JSON API")
 	}
 	if len(args) == 0 || args[0] == "help" || args[0] == "--help" || args[0] == "-h" {
 		usage()
@@ -61,7 +61,7 @@ func run(ctx context.Context, args []string, in io.Reader, out, stderr io.Writer
 	flags := flag.NewFlagSet(args[0], flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	dd := flags.String("data-dir", "", "数据目录")
-	var inputFile, limit, port *string
+	var inputFile, limit, host, port *string
 	var jsonMode, fresh, attachAll *bool
 	var templateText, templateFile, quarkCLI string
 	var shareTemplate *template.Template
@@ -77,6 +77,7 @@ func run(ctx context.Context, args []string, in io.Reader, out, stderr io.Writer
 		flags.StringVar(&templateText, "template", "", "分享文案模板")
 		flags.StringVar(&templateFile, "template-file", "", "读取 UTF-8 分享文案模板文件")
 	case "serve":
+		host = flags.String("host", "0.0.0.0", "监听的 IPv4 地址或主机名")
 		port = flags.String("port", "8765", "监听端口，0 为自动分配")
 		flags.StringVar(&quarkCLI, "quark-cli", "", "夸克官方 quark-drive.cjs 的路径，用于手动更新")
 	}
@@ -165,6 +166,10 @@ func run(ctx context.Context, args []string, in io.Reader, out, stderr io.Writer
 		if flags.NArg() > 0 {
 			return 1, errors.New("serve 只接受选项")
 		}
+		bindHost := strings.TrimSpace(*host)
+		if bindHost == "" {
+			return 1, errors.New("--host 不能为空")
+		}
 		portNumber, e := strconv.ParseUint(*port, 10, 16)
 		if e != nil {
 			return 1, errors.New("--port 必须是 0 到 65535 的整数，0 为自动分配")
@@ -173,9 +178,10 @@ func run(ctx context.Context, args []string, in io.Reader, out, stderr io.Writer
 		if e != nil {
 			return 1, e
 		}
-		listener, e := net.Listen("tcp4", fmt.Sprintf("0.0.0.0:%d", portNumber))
+		listenAddress := net.JoinHostPort(bindHost, strconv.FormatUint(portNumber, 10))
+		listener, e := net.Listen("tcp4", listenAddress)
 		if e != nil {
-			return 1, fmt.Errorf("无法监听端口 %d。若端口已被占用，请用 serve --port 8766 改用空闲端口，或用 --port 0 自动分配：%w", portNumber, e)
+			return 1, fmt.Errorf("无法监听 %s。若端口已被占用，请用 serve --port 8766 改用空闲端口，或用 --port 0 自动分配：%w", listenAddress, e)
 		}
 		defer listener.Close()
 		s.backfillAvatar(ctx)
@@ -192,8 +198,11 @@ func run(ctx context.Context, args []string, in io.Reader, out, stderr io.Writer
 				server.Close()
 			}
 		}()
-		_, listenPort, _ := net.SplitHostPort(listener.Addr().String())
-		fmt.Fprintf(out, "监听 %s，本机管理页 http://127.0.0.1:%s\n", listener.Addr(), listenPort)
+		listenHost, listenPort, _ := net.SplitHostPort(listener.Addr().String())
+		if listenHost == "0.0.0.0" {
+			listenHost = "127.0.0.1"
+		}
+		fmt.Fprintf(out, "监听 %s，本机管理页 http://%s\n", listener.Addr(), net.JoinHostPort(listenHost, listenPort))
 		if e = server.Serve(listener); !errors.Is(e, http.ErrServerClosed) {
 			return 1, e
 		}

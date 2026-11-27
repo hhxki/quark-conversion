@@ -382,10 +382,13 @@ func web(s *state, address string, updates *officialUpdates) http.Handler {
 		w.Header().Set("Referrer-Policy", "no-referrer")
 		w.Header().Set("Content-Security-Policy", "default-src 'self'; img-src 'self' data: https:; frame-ancestors 'none'; form-action 'self'; base-uri 'none'")
 		localAddr, _ := r.Context().Value(http.LocalAddrContextKey).(net.Addr)
-		allowedHost := r.Host == address || r.Host == "localhost:"+port
+		requestHost := r.Host
+		if port == "80" && !strings.Contains(requestHost, ":") {
+			requestHost += ":80"
+		}
+		allowedHost := requestHost == address || requestHost == "localhost:"+port
 		if listenHost == "0.0.0.0" && localAddr != nil {
-			localHost := localAddr.String()
-			allowedHost = allowedHost || r.Host == localHost || (port == "80" && r.Host+":80" == localHost)
+			allowedHost = allowedHost || requestHost == localAddr.String()
 		}
 		if !allowedHost {
 			respondError(w, 403, errors.New("请使用此电脑的 IP 地址访问"))

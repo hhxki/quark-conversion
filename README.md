@@ -2,6 +2,15 @@
 
 批量从分享文案或 TXT 提取夸克链接。优先复用自己的现有分享，符合转存条件时生成新的分享链接。Windows 和 Linux 均可运行，内置本地网页。
 
+## 下载与启动
+
+Linux x86-64 可从 [最新 Release](https://github.com/hhxki/quark-conversion/releases/latest) 下载 `quark-convert-linux-amd64`。在下载目录运行以下命令，然后打开 [本地网页](http://127.0.0.1:8765)。
+
+```sh
+chmod +x quark-convert-linux-amd64
+./quark-convert-linux-amd64 serve --host 127.0.0.1 --port 8765
+```
+
 ## 从源码启动
 
 需要 Go 1.25 或更高版本。在项目根目录运行下面的命令，然后打开 [本地网页](http://127.0.0.1:8765)。网页已嵌入 Go 程序，无需单独启动前端。
@@ -52,9 +61,10 @@ quark-convert login --cookie-file /path/to/quark-cookie.txt
 quark-convert convert "https://pan.quark.cn/s/your-share-id"
 quark-convert convert --file input.txt --limit 0.5T --json
 quark-convert serve --port 8765
+quark-convert serve --host 127.0.0.1 --port 8765
 ~~~
 
-端口被占用时，可改为 `serve --port 8766` 或用 `serve --port 0` 让系统分配空闲端口。访问网址以终端输出为准。其他程序接入时，把其服务地址改成同一个端口。
+`--host` 可指定监听的 IPv4 地址或主机名。省略时监听 `0.0.0.0`，允许局域网设备访问。指定 `--host 127.0.0.1` 时，仅本机可以访问。端口被占用时，可改为 `--port 8766` 或用 `--port 0` 让系统分配空闲端口。访问网址以终端输出为准。
 
 网页扫码和命令行会话导入共享本机数据。普通模式把成功链接写入标准输出，将失败和跳过项写入标准错误。`--json` 输出逐条结果。退出码 `0` 代表所有条目完成，`1` 代表请求未开始或程序错误，`2` 代表部分条目需要处理。
 
@@ -122,7 +132,9 @@ foreach ($item in $results) {
 
 ## HTTP API
 
-服务默认监听 `0.0.0.0:8765`，本机可访问 `http://127.0.0.1:8765`，局域网设备可使用运行程序的电脑 IPv4 地址访问。管理页与 API 共用当前登录的夸克会话，请在可信网络中使用。Python、Node.js 或 Next.js 服务端可向 `POST /api/v1/convert` 发送 JSON。
+管理页与 API 使用同一个监听地址与端口，并共用当前登录的夸克会话。默认监听 `0.0.0.0:8765`，局域网设备可通过运行程序的电脑 IPv4 地址访问，请在可信网络中使用。仅供本机调用时，使用 `serve --host 127.0.0.1 --port 8765`，并向 `http://127.0.0.1:8765` 发送请求。
+
+`GET /api/v1/settings` 读取当前登录状态和转存大小上限。Python、Node.js 或 Next.js 服务端可向 `POST /api/v1/convert` 发送 JSON。
 
 ~~~json
 {"text":"分享正文或一批链接","limit":"0.5T"}
