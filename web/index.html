@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>夸克分享转换</title>
+<link rel="stylesheet" href="/style.css">
+<script src="/app.js" defer></script>
+</head>
+<body>
+<header class="top"><div class="wrap bar">
+  <span class="brand"><span class="brand-mark" aria-hidden="true">↗</span>夸克分享转换</span>
+  <button id="account" class="secondary">
+    <span id="account-avatar" aria-hidden="true" hidden>
+      <span id="account-avatar-fallback"></span>
+      <img id="account-avatar-image" alt="" width="24" height="24" referrerpolicy="no-referrer" hidden>
+    </span>
+    <span id="account-name">连接夸克网盘</span>
+  </button>
+</div></header>
+<main class="wrap">
+  <div class="heading"><div><h1>分享链接转换</h1><p>从分享文案或 TXT 提取链接，复用已有分享，或转存后生成新链接。</p></div><button id="settings" class="secondary">设置</button></div>
+  <nav aria-label="工作区"><button class="tab selected" data-view="work">转换</button><button class="tab" data-view="history">本地历史</button><button class="tab" data-view="shares">我的分享</button><button class="tab" data-view="updates">转存更新</button></nav>
+  <section id="work">
+    <form id="convert-form" class="panel">
+      <div class="panel-head"><label for="input">源分享</label><span id="limit-label" class="badge">上限 100G</span></div>
+      <textarea id="input" placeholder="粘贴夸克分享链接或原文，可一次处理多条" spellcheck="false" required></textarea>
+      <label class="test-option"><input type="checkbox" id="retest"> 测试新转存（跳过旧分享复用）</label>
+      <label class="test-option"><input type="checkbox" id="attach"> 为本批链接添加「常用附件」</label>
+      <div class="actions"><div><label for="file" class="file-label">导入 TXT</label><input type="file" id="file" accept=".txt,text/plain"><button type="button" class="quiet" id="preview">预览链接</button><button type="button" class="quiet" id="clear">清空</button></div><button type="submit" id="convert">开始转换</button></div>
+    </form>
+    <section class="panel results" aria-labelledby="results-title">
+      <div class="panel-head"><h2 id="results-title">转换结果</h2><div class="actions compact"><button class="secondary" id="copy" disabled>复制链接</button><button class="secondary" id="download" disabled>导出 TXT</button></div></div>
+      <div class="result-tools"><span id="summary" role="status">转换后的链接会出现在这里</span><label for="filter">状态</label><select id="filter"><option value="">全部</option><option value="success">已完成</option><option value="manual_selection">待手动筛选</option><option value="over_limit">超出大小上限</option><option value="size_unknown">大小待确认</option><option value="paused">已暂停</option><option value="pending_confirmation">待核对</option><option value="failed">失败</option></select></div>
+      <p id="notice" class="notice" role="alert" hidden></p><div id="results"></div>
+    </section>
+  </section>
+  <section id="history" class="panel" aria-label="本地历史" hidden></section>
+  <section id="shares" class="panel" aria-label="我的分享" hidden></section>
+  <section id="updates" class="panel" aria-labelledby="updates-title" hidden>
+    <div class="panel-head">
+      <h2 id="updates-title">转存更新</h2>
+      <div class="actions compact">
+        <button type="button" class="secondary" id="updates-prev" hidden>上一页</button>
+        <button type="button" class="secondary" id="updates-next" hidden>下一页</button>
+        <button type="button" id="updates-check" disabled>检查更新</button>
+      </div>
+    </div>
+    <p class="row-note" id="updates-status" role="status">使用夸克官方 CLI 已授权的账号检查更新。</p>
+    <div id="updates-list"></div>
+  </section>
+  <template id="record-list-template">
+    <div class="panel-head history-heading">
+      <div class="history-heading"><h2 data-list-title></h2><span data-count class="row-note"></span></div>
+      <div class="history-toolbar">
+        <div data-batch class="history-toolbar" hidden>
+          <button data-copy type="button" class="secondary">复制链接</button>
+          <button data-destroy type="button" class="secondary"></button>
+          <button data-export type="button">批量导出 CSV</button>
+        </div>
+        <button data-refresh type="button" class="secondary">刷新</button>
+      </div>
+    </div>
+    <div data-status class="row-note list-status" role="status"></div>
+    <div data-columns class="history-grid history-columns" hidden>
+      <label class="history-select-all"><input data-select-all type="checkbox"> 全选</label>
+      <span data-selection class="row-note list-selection" aria-live="polite"></span>
+      <span></span><span data-date-heading class="history-date"></span><span class="history-state">状态</span>
+    </div>
+    <div data-list class="history-list"></div>
+  </template>
+</main>
+<dialog id="account-dialog">
+  <div class="panel-head"><h2>夸克网盘账号</h2><button type="button" class="quiet close" aria-label="关闭">关闭</button></div>
+  <p id="login-status" role="status">使用夸克 App 扫码，或导入已登录的网页会话。</p>
+  <button id="start-qr">获取登录二维码</button>
+  <img id="qr" alt="请用夸克 App 扫描此登录二维码" width="264" height="264" hidden>
+  <details><summary>导入已有网页会话</summary>
+    <form id="login-form">
+      <p class="muted">登录夸克网盘网页版后，从浏览器开发者工具的网络面板复制夸克网盘请求的 Cookie 值，粘贴到这里。</p>
+      <label for="cookie">Cookie</label><input type="password" id="cookie" autocomplete="off" required>
+      <button type="submit">保存会话</button>
+    </form>
+  </details>
+  <button class="secondary" id="logout" hidden>清除本机登录</button>
+</dialog>
+<dialog id="preview-dialog">
+  <div class="panel-head"><h2>检测到的源链接</h2><button type="button" class="quiet close">关闭</button></div>
+  <div id="preview-list"></div>
+</dialog>
+<dialog id="update-dialog">
+  <div class="panel-head"><h2 id="update-title">查看新增文件</h2><button type="button" class="quiet close">关闭</button></div>
+  <p class="row-note" id="update-status" role="status"></p>
+  <ul id="update-files"></ul>
+  <div class="actions compact">
+    <button type="button" class="secondary" id="update-next" hidden>查看更多</button>
+    <button type="button" id="update-apply" hidden>转存全部新增</button>
+  </div>
+</dialog>
+<dialog id="settings-dialog">
+  <div class="panel-head"><h2>转换设置</h2><button type="button" class="quiet close" aria-label="关闭">关闭</button></div>
+  <form id="settings-form">
+    <label for="limit">每条分享的转存大小上限</label>
+    <input type="text" id="limit" placeholder="100G 或 0.5T" required>
+    <p class="muted">1T = 1024G。符合条件的分享转存到网盘根目录下的「来自：分享」。</p>
+    <p id="settings-status" role="alert" hidden></p>
+    <button type="submit">保存设置</button>
+  </form>
+</dialog>
+</body>
+</html>

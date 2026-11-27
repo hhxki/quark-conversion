@@ -1,0 +1,15 @@
+/release/
+/.go-cache/
+/.go-mod/
+/quark-convert
+/quark-convert.exe
+/quark-conversion.exe
+/quark-data/
+/AGENT_HANDOFF.md
+/quark-conversion-plan.md
+.env
+.env.*
+*cookie*.txt
+*.db
+*.db-*
+*.zip
